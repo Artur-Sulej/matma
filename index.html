@@ -199,15 +199,26 @@ main {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 72px;
+  font-size: 80px;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.3s;
 }
 
 .feedback-overlay.show {
-  opacity: 1;
-  animation: pop 0.4s ease;
+  animation: celebrateEmoji 0.8s ease forwards;
+}
+
+.confetti-particle {
+  position: fixed;
+  pointer-events: none;
+  font-size: 24px;
+  z-index: 100;
+  animation: confettiFall linear forwards;
+}
+
+.problem-area.correct-flash .answer-display {
+  color: #22c55e;
+  border-bottom-color: #22c55e;
 }
 
 #numpad {
@@ -267,16 +278,33 @@ main {
 }
 
 @keyframes correctFlash {
-  0% { transform: scale(1); }
-  30% { transform: scale(1.12); }
-  60% { transform: scale(1.05); }
-  100% { transform: scale(1); }
+  0% { transform: scale(1) rotate(0deg); }
+  20% { transform: scale(1.15) rotate(-2deg); }
+  40% { transform: scale(0.95) rotate(1deg); }
+  60% { transform: scale(1.08) rotate(-1deg); }
+  80% { transform: scale(1.02); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+
+@keyframes celebrateEmoji {
+  0% { opacity: 0; transform: scale(0.2) rotate(-20deg); }
+  30% { opacity: 1; transform: scale(1.4) rotate(10deg); }
+  50% { transform: scale(1.0) rotate(-5deg); }
+  70% { transform: scale(1.2) rotate(3deg); }
+  85% { opacity: 1; transform: scale(1.1) rotate(0deg); }
+  100% { opacity: 0; transform: scale(1.5) rotate(0deg); }
 }
 
 @keyframes pop {
   0% { transform: scale(1); }
-  50% { transform: scale(1.3); }
+  40% { transform: scale(1.5); }
+  70% { transform: scale(0.9); }
   100% { transform: scale(1); }
+}
+
+@keyframes confettiFall {
+  0% { opacity: 1; transform: translate(0, 0) rotate(0deg) scale(1); }
+  100% { opacity: 0; transform: translate(var(--dx), var(--dy)) rotate(var(--rot)) scale(0.5); }
 }
 
 @keyframes slideIn {
@@ -478,16 +506,20 @@ main {
       void problemArea.offsetWidth;
       problemArea.classList.add('correct-flash');
 
-      feedbackOverlay.textContent = '\u2713';
-      feedbackOverlay.style.color = '#22c55e';
+      var emojis = ['\u2B50', '\u{1F389}', '\u{1F31F}', '\u{1F60E}', '\u{1F44D}', '\u{1F525}', '\u{1F3C6}', '\u{1F4AA}', '\u{1F680}', '\u{1F38A}'];
+      feedbackOverlay.textContent = emojis[randInt(0, emojis.length - 1)];
+      feedbackOverlay.classList.remove('show');
+      void feedbackOverlay.offsetWidth;
       feedbackOverlay.classList.add('show');
+
+      spawnConfetti();
 
       setTimeout(function() {
         feedbackOverlay.classList.remove('show');
         problemArea.classList.remove('correct-flash');
         state.feedbackActive = false;
         generateProblem();
-      }, 600);
+      }, 900);
     } else {
       state.feedbackActive = true;
       state.streak = 0;
@@ -526,6 +558,32 @@ main {
       handleButton(btn.dataset.key);
     });
   });
+
+  var confettiPieces = ['\u{1F7E1}', '\u{1F7E2}', '\u{1F535}', '\u{1F7E3}', '\u{1F534}', '\u{1F7E0}', '\u2728', '\u{1F49B}', '\u{1F49A}', '\u{1F499}'];
+  function spawnConfetti() {
+    var rect = problemArea.getBoundingClientRect();
+    var cx = rect.left + rect.width / 2;
+    var cy = rect.top + rect.height / 2;
+    var count = 18;
+    for (var i = 0; i < count; i++) {
+      var el = document.createElement('div');
+      el.className = 'confetti-particle';
+      el.textContent = confettiPieces[randInt(0, confettiPieces.length - 1)];
+      var angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.5;
+      var dist = 80 + Math.random() * 160;
+      var dx = Math.cos(angle) * dist;
+      var dy = Math.sin(angle) * dist - 40;
+      var rot = (Math.random() - 0.5) * 720;
+      el.style.left = cx + 'px';
+      el.style.top = cy + 'px';
+      el.style.setProperty('--dx', dx + 'px');
+      el.style.setProperty('--dy', dy + 'px');
+      el.style.setProperty('--rot', rot + 'deg');
+      el.style.animationDuration = (0.6 + Math.random() * 0.5) + 's';
+      document.body.appendChild(el);
+      el.addEventListener('animationend', function() { this.remove(); });
+    }
+  }
 
   function handleButton(key) {
     if (key === 'backspace') {
