@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Matma</title>
+<style>
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  background: #f0f4f8;
+  font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+}
+
+#app {
+  display: flex;
+  flex-direction: column;
+  max-width: 480px;
+  margin: 0 auto;
+  height: 100vh;
+  height: 100dvh;
+  padding: 12px 16px;
+}
+
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0 8px;
+  flex-shrink: 0;
+}
+
+.stats {
+  display: flex;
+  gap: 16px;
+  font-size: 18px;
+  font-weight: 600;
+  color: #475569;
+}
+
+.streak {
+  color: #f59e0b;
+  transition: transform 0.3s ease;
+}
+
+.streak.pop {
+  animation: pop 0.3s ease;
+}
+
+.settings-btn {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #64748b;
+  padding: 8px;
+  border-radius: 8px;
+  transition: background 0.15s;
+}
+
+.settings-btn:hover {
+  background: #e2e8f0;
+}
+
+#settings {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+  flex-shrink: 0;
+}
+
+#settings.open {
+  max-height: 200px;
+}
+
+.settings-inner {
+  background: #fff;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.settings-row:last-child {
+  margin-bottom: 0;
+}
+
+.settings-row label {
+  font-size: 16px;
+  color: #334155;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.settings-row input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  accent-color: #3b82f6;
+}
+
+.range-label {
+  font-size: 16px;
+  color: #334155;
+  flex-shrink: 0;
+}
+
+.range-value {
+  font-weight: 700;
+  color: #3b82f6;
+  min-width: 32px;
+  text-align: center;
+}
+
+input[type="range"] {
+  flex: 1;
+  accent-color: #3b82f6;
+  height: 24px;
+}
+
+main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  min-height: 0;
+}
+
+.problem-area {
+  text-align: center;
+  transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+.problem-area.correct-flash {
+  animation: correctFlash 0.6s ease;
+}
+
+.problem-area.new-problem {
+  animation: slideIn 0.3s ease;
+}
+
+.problem-text {
+  font-size: clamp(36px, 8vw, 64px);
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 8px;
+}
+
+.answer-display {
+  font-size: clamp(36px, 8vw, 64px);
+  font-weight: 700;
+  color: #3b82f6;
+  min-height: 1.2em;
+  border-bottom: 3px solid #cbd5e1;
+  min-width: 120px;
+  display: inline-block;
+  padding: 0 8px;
+}
+
+.answer-display.shake {
+  animation: shake 0.5s ease;
+}
+
+.answer-display.red-tint {
+  color: #ef4444;
+  border-bottom-color: #fca5a5;
+}
+
+.feedback-overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 72px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s;
+}
+
+.feedback-overlay.show {
+  opacity: 1;
+  animation: pop 0.4s ease;
+}
+
+.cursor-blink {
+  animation: blink 1s step-end infinite;
+  font-weight: 300;
+}
+
+#numpad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  padding: 8px 0 12px;
+  flex-shrink: 0;
+}
+
+.num-btn {
+  min-height: 64px;
+  font-size: 28px;
+  font-weight: 600;
+  border: none;
+  border-radius: 12px;
+  background: #fff;
+  color: #1e293b;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  transition: transform 50ms ease, background 50ms ease;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.num-btn:active, .num-btn.pressed {
+  transform: scale(0.95);
+  background: #e2e8f0;
+}
+
+.num-btn.action-btn {
+  background: #e2e8f0;
+  color: #475569;
+  font-size: 22px;
+}
+
+.num-btn.submit-btn {
+  background: #3b82f6;
+  color: #fff;
+}
+
+.num-btn.submit-btn:active, .num-btn.submit-btn.pressed {
+  background: #2563eb;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  15% { transform: translateX(-8px); }
+  30% { transform: translateX(8px); }
+  45% { transform: translateX(-6px); }
+  60% { transform: translateX(6px); }
+  75% { transform: translateX(-3px); }
+  90% { transform: translateX(3px); }
+}
+
+@keyframes correctFlash {
+  0% { transform: scale(1); }
+  30% { transform: scale(1.12); }
+  60% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+@keyframes pop {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.3); }
+  100% { transform: scale(1); }
+}
+
+@keyframes slideIn {
+  0% { opacity: 0; transform: translateY(-20px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.streak-icon::before {
+  content: '';
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="stats">
+      <span id="score"></span>
+      <span class="streak" id="streak"></span>
+    </div>
+    <button class="settings-btn" id="settingsBtn" aria-label="Settings">&#9881;</button>
+  </header>
+
+  <div id="settings">
+    <div class="settings-inner">
+      <div class="settings-row">
+        <label><input type="checkbox" id="opAdd" checked> Dodawanie (+)</label>
+        <label><input type="checkbox" id="opSub" checked> Odejmowanie (-)</label>
+      </div>
+      <div class="settings-row">
+        <span class="range-label">Zakres:</span>
+        <input type="range" id="maxRange" min="5" max="100" value="20">
+        <span class="range-value" id="rangeValue">20</span>
+      </div>
+    </div>
+  </div>
+
+  <main>
+    <div class="problem-area" id="problemArea">
+      <div class="problem-text" id="problemText"></div>
+      <div class="answer-display" id="answerDisplay"><span class="cursor-blink">|</span></div>
+    </div>
+    <div class="feedback-overlay" id="feedbackOverlay"></div>
+  </main>
+
+  <div id="numpad">
+    <button class="num-btn" data-key="1">1</button>
+    <button class="num-btn" data-key="2">2</button>
+    <button class="num-btn" data-key="3">3</button>
+    <button class="num-btn" data-key="4">4</button>
+    <button class="num-btn" data-key="5">5</button>
+    <button class="num-btn" data-key="6">6</button>
+    <button class="num-btn" data-key="7">7</button>
+    <button class="num-btn" data-key="8">8</button>
+    <button class="num-btn" data-key="9">9</button>
+    <button class="num-btn action-btn" data-key="backspace">&larr;</button>
+    <button class="num-btn" data-key="0">0</button>
+    <button class="num-btn submit-btn" data-key="submit">OK</button>
+  </div>
+</div>
+
+<script>
+(function() {
+  const state = {
+    operations: { add: true, sub: true },
+    maxNumber: 20,
+    num1: 0,
+    num2: 0,
+    operator: '+',
+    correctAnswer: 0,
+    currentInput: '',
+    streak: 0,
+    totalCorrect: 0,
+    feedbackActive: false
+  };
+
+  const $ = (id) => document.getElementById(id);
+  const problemArea = $('problemArea');
+  const problemText = $('problemText');
+  const answerDisplay = $('answerDisplay');
+  const feedbackOverlay = $('feedbackOverlay');
+  const streakEl = $('streak');
+  const scoreEl = $('score');
+  const settingsPanel = $('settings');
+  const settingsBtn = $('settingsBtn');
+  const opAdd = $('opAdd');
+  const opSub = $('opSub');
+  const maxRange = $('maxRange');
+  const rangeValue = $('rangeValue');
+
+  function loadSettings() {
+    try {
+      const saved = localStorage.getItem('matma_settings');
+      if (saved) {
+        const s = JSON.parse(saved);
+        if (typeof s.add === 'boolean') state.operations.add = s.add;
+        if (typeof s.sub === 'boolean') state.operations.sub = s.sub;
+        if (typeof s.max === 'number') state.maxNumber = s.max;
+      }
+    } catch(e) {}
+    if (!state.operations.add && !state.operations.sub) state.operations.add = true;
+    opAdd.checked = state.operations.add;
+    opSub.checked = state.operations.sub;
+    maxRange.value = state.maxNumber;
+    rangeValue.textContent = state.maxNumber;
+  }
+
+  function saveSettings() {
+    try {
+      localStorage.setItem('matma_settings', JSON.stringify({
+        add: state.operations.add,
+        sub: state.operations.sub,
+        max: state.maxNumber
+      }));
+    } catch(e) {}
+  }
+
+  function randInt(min, max) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+  }
+
+  function generateProblem() {
+    const ops = [];
+    if (state.operations.add) ops.push('+');
+    if (state.operations.sub) ops.push('-');
+    if (ops.length === 0) ops.push('+');
+
+    state.operator = ops[randInt(0, ops.length - 1)];
+
+    if (state.operator === '+') {
+      state.num1 = randInt(0, state.maxNumber);
+      state.num2 = randInt(0, state.maxNumber - state.num1);
+    } else {
+      state.num1 = randInt(0, state.maxNumber);
+      state.num2 = randInt(0, state.num1);
+    }
+
+    state.correctAnswer = state.operator === '+'
+      ? state.num1 + state.num2
+      : state.num1 - state.num2;
+
+    state.currentInput = '';
+    renderProblem();
+    renderAnswer();
+
+    problemArea.classList.remove('new-problem');
+    void problemArea.offsetWidth;
+    problemArea.classList.add('new-problem');
+  }
+
+  function renderProblem() {
+    problemText.textContent = state.num1 + ' ' + state.operator + ' ' + state.num2 + ' =';
+  }
+
+  function renderAnswer() {
+    if (state.currentInput === '') {
+      answerDisplay.innerHTML = '<span class="cursor-blink">|</span>';
+    } else {
+      answerDisplay.textContent = state.currentInput;
+    }
+  }
+
+  function renderStats() {
+    scoreEl.textContent = 'Wynik: ' + state.totalCorrect;
+    streakEl.textContent = 'Seria: ' + state.streak;
+  }
+
+  function handleDigit(d) {
+    if (state.feedbackActive) return;
+    if (state.currentInput.length >= 3) return;
+    state.currentInput += d;
+    answerDisplay.classList.remove('red-tint');
+    renderAnswer();
+  }
+
+  function handleBackspace() {
+    if (state.feedbackActive) return;
+    state.currentInput = state.currentInput.slice(0, -1);
+    answerDisplay.classList.remove('red-tint');
+    renderAnswer();
+  }
+
+  function handleSubmit() {
+    if (state.feedbackActive) return;
+    if (state.currentInput === '') return;
+
+    const answer = parseInt(state.currentInput, 10);
+
+    if (answer === state.correctAnswer) {
+      state.feedbackActive = true;
+      state.totalCorrect++;
+      state.streak++;
+      renderStats();
+
+      streakEl.classList.remove('pop');
+      void streakEl.offsetWidth;
+      streakEl.classList.add('pop');
+
+      problemArea.classList.remove('correct-flash');
+      void problemArea.offsetWidth;
+      problemArea.classList.add('correct-flash');
+
+      feedbackOverlay.textContent = '\u2713';
+      feedbackOverlay.style.color = '#22c55e';
+      feedbackOverlay.classList.add('show');
+
+      setTimeout(function() {
+        feedbackOverlay.classList.remove('show');
+        problemArea.classList.remove('correct-flash');
+        state.feedbackActive = false;
+        generateProblem();
+      }, 600);
+    } else {
+      state.feedbackActive = true;
+      state.streak = 0;
+      renderStats();
+
+      answerDisplay.classList.remove('shake', 'red-tint');
+      void answerDisplay.offsetWidth;
+      answerDisplay.classList.add('shake', 'red-tint');
+
+      setTimeout(function() {
+        answerDisplay.classList.remove('shake');
+        state.currentInput = '';
+        renderAnswer();
+        answerDisplay.classList.add('red-tint');
+        setTimeout(function() {
+          answerDisplay.classList.remove('red-tint');
+        }, 200);
+        state.feedbackActive = false;
+      }, 500);
+    }
+  }
+
+  // Touch + click handling with guard
+  let touchHandled = false;
+
+  document.querySelectorAll('.num-btn').forEach(function(btn) {
+    btn.addEventListener('touchstart', function(e) {
+      e.preventDefault();
+      touchHandled = true;
+      handleButton(btn.dataset.key);
+      setTimeout(function() { touchHandled = false; }, 300);
+    }, { passive: false });
+
+    btn.addEventListener('click', function() {
+      if (touchHandled) return;
+      handleButton(btn.dataset.key);
+    });
+  });
+
+  function handleButton(key) {
+    if (key === 'backspace') {
+      handleBackspace();
+    } else if (key === 'submit') {
+      handleSubmit();
+    } else {
+      handleDigit(key);
+    }
+  }
+
+  // Keyboard support
+  document.addEventListener('keydown', function(e) {
+    if (e.key >= '0' && e.key <= '9') {
+      handleDigit(e.key);
+      e.preventDefault();
+    } else if (e.key === 'Backspace') {
+      handleBackspace();
+      e.preventDefault();
+    } else if (e.key === 'Enter') {
+      handleSubmit();
+      e.preventDefault();
+    }
+  });
+
+  // Settings
+  settingsBtn.addEventListener('click', function() {
+    settingsPanel.classList.toggle('open');
+  });
+
+  opAdd.addEventListener('change', function() {
+    if (!opAdd.checked && !opSub.checked) {
+      opAdd.checked = true;
+    }
+    state.operations.add = opAdd.checked;
+    saveSettings();
+    generateProblem();
+  });
+
+  opSub.addEventListener('change', function() {
+    if (!opSub.checked && !opAdd.checked) {
+      opSub.checked = true;
+    }
+    state.operations.sub = opSub.checked;
+    saveSettings();
+    generateProblem();
+  });
+
+  maxRange.addEventListener('input', function() {
+    state.maxNumber = parseInt(maxRange.value, 10);
+    rangeValue.textContent = state.maxNumber;
+    saveSettings();
+  });
+
+  maxRange.addEventListener('change', function() {
+    generateProblem();
+  });
+
+  // Prevent pull-to-refresh and bounce scrolling
+  document.addEventListener('touchmove', function(e) {
+    if (e.target.type !== 'range') e.preventDefault();
+  }, { passive: false });
+
+  // Init
+  loadSettings();
+  renderStats();
+  generateProblem();
+})();
+</script>
+</body>
+</html>
