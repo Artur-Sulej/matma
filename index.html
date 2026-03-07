@@ -149,7 +149,9 @@ main {
 }
 
 .problem-area {
-  text-align: center;
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
   transition: transform 0.3s ease, opacity 0.3s ease;
 }
 
@@ -165,7 +167,6 @@ main {
   font-size: clamp(36px, 8vw, 64px);
   font-weight: 700;
   color: #1e293b;
-  margin-bottom: 8px;
 }
 
 .answer-display {
@@ -203,11 +204,6 @@ main {
 .feedback-overlay.show {
   opacity: 1;
   animation: pop 0.4s ease;
-}
-
-.cursor-blink {
-  animation: blink 1s step-end infinite;
-  font-weight: 300;
 }
 
 #numpad {
@@ -284,11 +280,6 @@ main {
   100% { opacity: 1; transform: translateY(0); }
 }
 
-@keyframes blink {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0; }
-}
-
 .streak-icon::before {
   content: '';
 }
@@ -321,7 +312,7 @@ main {
   <main>
     <div class="problem-area" id="problemArea">
       <div class="problem-text" id="problemText"></div>
-      <div class="answer-display" id="answerDisplay"><span class="cursor-blink">|</span></div>
+      <div class="answer-display" id="answerDisplay"></div>
     </div>
     <div class="feedback-overlay" id="feedbackOverlay"></div>
   </main>
@@ -411,11 +402,11 @@ main {
     state.operator = ops[randInt(0, ops.length - 1)];
 
     if (state.operator === '+') {
-      state.num1 = randInt(0, state.maxNumber);
-      state.num2 = randInt(0, state.maxNumber - state.num1);
+      state.num1 = randInt(1, state.maxNumber - 1);
+      state.num2 = randInt(1, state.maxNumber - state.num1);
     } else {
-      state.num1 = randInt(0, state.maxNumber);
-      state.num2 = randInt(0, state.num1);
+      state.num1 = randInt(2, state.maxNumber);
+      state.num2 = randInt(1, state.num1 - 1);
     }
 
     state.correctAnswer = state.operator === '+'
@@ -437,7 +428,7 @@ main {
 
   function renderAnswer() {
     if (state.currentInput === '') {
-      answerDisplay.innerHTML = '<span class="cursor-blink">|</span>';
+      answerDisplay.textContent = '';
     } else {
       answerDisplay.textContent = state.currentInput;
     }
