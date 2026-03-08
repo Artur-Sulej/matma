@@ -82,7 +82,7 @@ header {
 }
 
 #settings.open {
-  max-height: 200px;
+  max-height: 250px;
 }
 
 .settings-inner {
@@ -163,7 +163,7 @@ main {
   animation: slideIn 0.3s ease;
 }
 
-.problem-text {
+.problem-text, .problem-suffix {
   font-size: clamp(36px, 8vw, 64px);
   font-weight: 700;
   color: #1e293b;
@@ -332,6 +332,7 @@ main {
       <div class="settings-row">
         <label><input type="checkbox" id="opAdd" checked> Dodawanie (+)</label>
         <label><input type="checkbox" id="opSub" checked> Odejmowanie (-)</label>
+        <label><input type="checkbox" id="opMake10"> Dopelnij do</label>
       </div>
       <div class="settings-row">
         <span class="range-label">Zakres:</span>
@@ -345,6 +346,7 @@ main {
     <div class="problem-area" id="problemArea">
       <div class="problem-text" id="problemText"></div>
       <div class="answer-display" id="answerDisplay"></div>
+      <div class="problem-suffix" id="problemSuffix"></div>
     </div>
     <div class="feedback-overlay" id="feedbackOverlay"></div>
   </main>
@@ -368,12 +370,14 @@ main {
 <script>
 (function() {
   const state = {
-    operations: { add: true, sub: true },
+    operations: { add: true, sub: true, make10: false },
     maxNumber: 20,
     num1: 0,
     num2: 0,
     operator: '+',
     correctAnswer: 0,
+    problemPrefix: '',
+    problemSuffix: '',
     currentInput: '',
     streak: 0,
     totalCorrect: 0,
@@ -389,8 +393,10 @@ main {
   const scoreEl = $('score');
   const settingsPanel = $('settings');
   const settingsBtn = $('settingsBtn');
+  const problemSuffix = $('problemSuffix');
   const opAdd = $('opAdd');
   const opSub = $('opSub');
+  const opMake10 = $('opMake10');
   const maxRange = $('maxRange');
   const rangeValue = $('rangeValue');
 
@@ -401,12 +407,14 @@ main {
         const s = JSON.parse(saved);
         if (typeof s.add === 'boolean') state.operations.add = s.add;
         if (typeof s.sub === 'boolean') state.operations.sub = s.sub;
+        if (typeof s.make10 === 'boolean') state.operations.make10 = s.make10;
         if (typeof s.max === 'number') state.maxNumber = s.max;
       }
     } catch(e) {}
-    if (!state.operations.add && !state.operations.sub) state.operations.add = true;
+    if (!state.operations.add && !state.operations.sub && !state.operations.make10) state.operations.add = true;
     opAdd.checked = state.operations.add;
     opSub.checked = state.operations.sub;
+    opMake10.checked = state.operations.make10;
     maxRange.value = state.maxNumber;
     rangeValue.textContent = state.maxNumber;
   }
@@ -416,6 +424,7 @@ main {
       localStorage.setItem('matma_settings', JSON.stringify({
         add: state.operations.add,
         sub: state.operations.sub,
+        make10: state.operations.make10,
         max: state.maxNumber
       }));
     } catch(e) {}
@@ -426,24 +435,44 @@ main {
   }
 
   function generateProblem() {
-    const ops = [];
-    if (state.operations.add) ops.push('+');
-    if (state.operations.sub) ops.push('-');
-    if (ops.length === 0) ops.push('+');
+    const modes = [];
+    if (state.operations.add) modes.push('add');
+    if (state.operations.sub) modes.push('sub');
+    if (state.operations.make10) modes.push('make10');
+    if (modes.length === 0) modes.push('add');
 
-    state.operator = ops[randInt(0, ops.length - 1)];
+    var mode = modes[randInt(0, modes.length - 1)];
 
-    if (state.operator === '+') {
+    if (mode === 'make10') {
+      var target = state.maxNumber;
+      var variant = randInt(0, 2);
+      var a = randInt(1, target - 1);
+      if (variant === 0) {
+        state.correctAnswer = target - a;
+        state.problemPrefix = a + ' + ';
+        state.problemSuffix = ' = ' + target;
+      } else if (variant === 1) {
+        state.correctAnswer = target - a;
+        state.problemPrefix = '';
+        state.problemSuffix = ' + ' + a + ' = ' + target;
+      } else {
+        state.correctAnswer = target - a;
+        state.problemPrefix = target + ' \u2212 ' + a + ' =';
+        state.problemSuffix = '';
+      }
+    } else if (mode === 'add') {
       state.num1 = randInt(1, state.maxNumber - 1);
       state.num2 = randInt(1, state.maxNumber - state.num1);
+      state.correctAnswer = state.num1 + state.num2;
+      state.problemPrefix = state.num1 + ' + ' + state.num2 + ' =';
+      state.problemSuffix = '';
     } else {
       state.num1 = randInt(2, state.maxNumber);
       state.num2 = randInt(1, state.num1 - 1);
+      state.correctAnswer = state.num1 - state.num2;
+      state.problemPrefix = state.num1 + ' \u2212 ' + state.num2 + ' =';
+      state.problemSuffix = '';
     }
-
-    state.correctAnswer = state.operator === '+'
-      ? state.num1 + state.num2
-      : state.num1 - state.num2;
 
     state.currentInput = '';
     renderProblem();
@@ -455,7 +484,8 @@ main {
   }
 
   function renderProblem() {
-    problemText.textContent = state.num1 + ' ' + state.operator + ' ' + state.num2 + ' =';
+    problemText.textContent = state.problemPrefix;
+    problemSuffix.textContent = state.problemSuffix;
   }
 
   function renderAnswer() {
@@ -614,23 +644,20 @@ main {
     settingsPanel.classList.toggle('open');
   });
 
-  opAdd.addEventListener('change', function() {
-    if (!opAdd.checked && !opSub.checked) {
-      opAdd.checked = true;
+  function guardAtLeastOne(source) {
+    if (!opAdd.checked && !opSub.checked && !opMake10.checked) {
+      source.checked = true;
     }
     state.operations.add = opAdd.checked;
-    saveSettings();
-    generateProblem();
-  });
-
-  opSub.addEventListener('change', function() {
-    if (!opSub.checked && !opAdd.checked) {
-      opSub.checked = true;
-    }
     state.operations.sub = opSub.checked;
+    state.operations.make10 = opMake10.checked;
     saveSettings();
     generateProblem();
-  });
+  }
+
+  opAdd.addEventListener('change', function() { guardAtLeastOne(opAdd); });
+  opSub.addEventListener('change', function() { guardAtLeastOne(opSub); });
+  opMake10.addEventListener('change', function() { guardAtLeastOne(opMake10); });
 
   maxRange.addEventListener('input', function() {
     state.maxNumber = parseInt(maxRange.value, 10);
