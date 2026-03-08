@@ -312,6 +312,28 @@ main {
   100% { opacity: 1; transform: translateY(0); }
 }
 
+.prob-token {
+  position: relative;
+}
+
+.bridge-hint {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: clamp(13px, 3.5vw, 20px);
+  color: #94a3b8;
+  font-weight: 600;
+  white-space: nowrap;
+  letter-spacing: 0.05em;
+  padding-bottom: 2px;
+  visibility: hidden;
+}
+
+.bridge-hint.visible {
+  visibility: visible;
+}
+
 .streak-icon::before {
   content: '';
 }
@@ -345,6 +367,16 @@ main {
   <main>
     <div class="problem-area" id="problemArea">
       <div class="problem-text" id="problemText"></div>
+      <div class="prob-token" id="tokenNum1" style="display:none">
+        <div class="bridge-hint" id="hintNum1"></div>
+        <span class="problem-text" id="spanNum1"></span>
+      </div>
+      <span class="problem-text" id="spanAddOp" style="display:none"> + </span>
+      <div class="prob-token" id="tokenNum2" style="display:none">
+        <div class="bridge-hint" id="hintNum2"></div>
+        <span class="problem-text" id="spanNum2"></span>
+      </div>
+      <span class="problem-text" id="spanAddEq" style="display:none"> =</span>
       <div class="answer-display" id="answerDisplay"></div>
       <div class="problem-suffix" id="problemSuffix"></div>
     </div>
@@ -381,7 +413,8 @@ main {
     currentInput: '',
     streak: 0,
     totalCorrect: 0,
-    feedbackActive: false
+    feedbackActive: false,
+    mode: 'add'
   };
 
   const $ = (id) => document.getElementById(id);
@@ -394,6 +427,14 @@ main {
   const settingsPanel = $('settings');
   const settingsBtn = $('settingsBtn');
   const problemSuffix = $('problemSuffix');
+  const tokenNum1 = $('tokenNum1');
+  const tokenNum2 = $('tokenNum2');
+  const spanNum1 = $('spanNum1');
+  const spanNum2 = $('spanNum2');
+  const spanAddOp = $('spanAddOp');
+  const spanAddEq = $('spanAddEq');
+  const hintNum1 = $('hintNum1');
+  const hintNum2 = $('hintNum2');
   const opAdd = $('opAdd');
   const opSub = $('opSub');
   const opMake10 = $('opMake10');
@@ -444,6 +485,7 @@ main {
     var mode = modes[randInt(0, modes.length - 1)];
 
     if (mode === 'make10') {
+      state.mode = 'make10';
       var target = state.maxNumber;
       var variant = randInt(0, 2);
       var a = randInt(1, target - 1);
@@ -466,15 +508,18 @@ main {
       state.correctAnswer = state.num1 + state.num2;
       state.problemPrefix = state.num1 + ' + ' + state.num2 + ' =';
       state.problemSuffix = '';
+      state.mode = 'add';
     } else {
       state.num1 = randInt(2, state.maxNumber);
       state.num2 = randInt(1, state.num1 - 1);
       state.correctAnswer = state.num1 - state.num2;
       state.problemPrefix = state.num1 + ' \u2212 ' + state.num2 + ' =';
       state.problemSuffix = '';
+      state.mode = 'sub';
     }
 
     state.currentInput = '';
+    hideHint();
     renderProblem();
     renderAnswer();
 
@@ -484,8 +529,24 @@ main {
   }
 
   function renderProblem() {
-    problemText.textContent = state.problemPrefix;
-    problemSuffix.textContent = state.problemSuffix;
+    if (state.mode === 'add') {
+      problemText.style.display = 'none';
+      tokenNum1.style.display = '';
+      spanAddOp.style.display = '';
+      tokenNum2.style.display = '';
+      spanAddEq.style.display = '';
+      spanNum1.textContent = state.num1;
+      spanNum2.textContent = state.num2;
+      problemSuffix.textContent = '';
+    } else {
+      problemText.style.display = '';
+      tokenNum1.style.display = 'none';
+      spanAddOp.style.display = 'none';
+      tokenNum2.style.display = 'none';
+      spanAddEq.style.display = 'none';
+      problemText.textContent = state.problemPrefix;
+      problemSuffix.textContent = state.problemSuffix;
+    }
   }
 
   function renderAnswer() {
@@ -499,6 +560,73 @@ main {
   function renderStats() {
     scoreEl.textContent = 'Wynik: ' + state.totalCorrect;
     streakEl.textContent = 'Seria: ' + state.streak;
+  }
+
+  function computeBridgeHint() {
+    if (state.mode !== 'add') return null;
+    var a = state.num1;
+    var b = state.num2;
+    var aSingle = a < 10;
+    var bSingle = b < 10;
+
+    if (aSingle && bSingle) {
+      var larger = Math.max(a, b);
+      var smaller = Math.min(a, b);
+      var gap = 10 - larger;
+      if (smaller < gap) return null;
+      return { splitIsNum2: b <= a, part1: gap, part2: smaller - gap };
+    }
+
+    if (!aSingle && bSingle) {
+      var ones = a % 10;
+      if (ones === 0) return null;
+      var gap = 10 - ones;
+      if (b < gap) return null;
+      return { splitIsNum2: true, part1: gap, part2: b - gap };
+    }
+
+    if (aSingle && !bSingle) {
+      var ones = b % 10;
+      if (ones === 0) return null;
+      var gap = 10 - ones;
+      if (a < gap) return null;
+      return { splitIsNum2: false, part1: gap, part2: a - gap };
+    }
+
+    // Both two-digit
+    var onesA = a % 10;
+    var onesB = b % 10;
+    var gapA = onesA === 0 ? Infinity : (10 - onesA);
+    var gapB = onesB === 0 ? Infinity : (10 - onesB);
+    if (!isFinite(gapA) && !isFinite(gapB)) return null;
+
+    if (gapB <= gapA) {
+      if (a < gapB) return null;
+      return { splitIsNum2: false, part1: a - gapB, part2: gapB };
+    } else {
+      if (b < gapA) return null;
+      return { splitIsNum2: true, part1: b - gapA, part2: gapA };
+    }
+  }
+
+  function showHint() {
+    var hint = computeBridgeHint();
+    if (!hint) return;
+    var hintText = hint.part1 + ' ' + hint.part2;
+    if (hint.splitIsNum2) {
+      hintNum2.textContent = hintText;
+      hintNum2.classList.add('visible');
+    } else {
+      hintNum1.textContent = hintText;
+      hintNum1.classList.add('visible');
+    }
+  }
+
+  function hideHint() {
+    hintNum1.textContent = '';
+    hintNum1.classList.remove('visible');
+    hintNum2.textContent = '';
+    hintNum2.classList.remove('visible');
   }
 
   function handleDigit(d) {
@@ -564,6 +692,7 @@ main {
         state.currentInput = '';
         renderAnswer();
         answerDisplay.classList.add('red-tint');
+        showHint();
         setTimeout(function() {
           answerDisplay.classList.remove('red-tint');
         }, 200);
