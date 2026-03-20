@@ -174,14 +174,15 @@ main {
   font-weight: 700;
   color: #3b82f6;
   line-height: 1.2;
+  border: none;
   border-bottom: 3px solid #cbd5e1;
   min-width: 80px;
   text-align: center;
   padding: 0 8px;
-}
-
-.answer-display:empty::before {
-  content: '\00a0';
+  background: transparent;
+  outline: none;
+  caret-color: transparent;
+  font-family: inherit;
 }
 
 .answer-display.shake {
@@ -377,7 +378,7 @@ main {
         <span class="problem-text" id="spanNum2"></span>
       </div>
       <span class="problem-text" id="spanAddEq" style="display:none"> =</span>
-      <div class="answer-display" id="answerDisplay"></div>
+      <input type="text" inputmode="none" class="answer-display" id="answerDisplay" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
       <div class="problem-suffix" id="problemSuffix"></div>
     </div>
     <div class="feedback-overlay" id="feedbackOverlay"></div>
@@ -550,11 +551,7 @@ main {
   }
 
   function renderAnswer() {
-    if (state.currentInput === '') {
-      answerDisplay.textContent = '';
-    } else {
-      answerDisplay.textContent = state.currentInput;
-    }
+    answerDisplay.value = state.currentInput;
   }
 
   function renderStats() {
@@ -796,6 +793,14 @@ main {
 
   maxRange.addEventListener('change', function() {
     generateProblem();
+  });
+
+  // Apple Pencil Scribble support
+  answerDisplay.addEventListener('input', function() {
+    var digits = answerDisplay.value.replace(/\D/g, '').slice(0, 3);
+    state.currentInput = digits;
+    answerDisplay.value = digits;
+    answerDisplay.classList.remove('red-tint');
   });
 
   // Prevent pull-to-refresh and bounce scrolling
