@@ -612,7 +612,7 @@ main {
   function showHint() {
     var hint = computeBridgeHint();
     if (!hint) return;
-    var hintText = hint.part1 + ' ' + hint.part2;
+    var hintText = hint.part1 + '+' + hint.part2;
     if (hint.splitIsNum2) {
       hintNum2.textContent = hintText;
       hintNum2.classList.add('visible');
